@@ -1,0 +1,88 @@
+version: '3.4'
+
+services:
+  product:
+    container_name: e-commerce_product
+    build: 
+      context: ./product
+      dockerfile: Dockerfile
+    ports:
+      - 8080:8080
+    networks:
+      - e-commerce_network
+
+  cart:
+    container_name: e-commerce_cart
+    build: 
+      context: ./cart
+      dockerfile: Dockerfile
+    ports:
+      - 8081:8081
+    networks:
+      - e-commerce_network
+  
+  redis:
+    image: redis
+    ports:
+      - 6379:6379
+    networks:
+      - e-commerce_network
+
+  order:
+    container_name: e-commerce_order
+    build:
+      context: ./order
+      dockerfile: Dockerfile
+    ports:
+      - 8082:8082
+    networks:
+      - e-commerce_network
+    
+  postgres:
+    image: postgres
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=142536
+      - POSTGRES_DB=order
+    networks:
+      - e-commerce_network
+    volumes:
+      - ./order/order.sql:/docker-entrypoint-initdb.d/order.sql
+
+  frontend:
+    container_name: e-commerce_frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - 3000:3000
+    environment:
+      - NEXT_PUBLIC_API_PRODUCT_URL=http://product:8080
+      - NEXT_PUBLIC_API_CART_URL=http://cart:8081
+      - NEXT_PUBLIC_API_ORDER_URL=http://order:8082
+    depends_on:
+      - product
+      - cart
+      - order
+    networks:
+      - e-commerce_network
+
+  nginx:
+    image: nginx
+    ports:
+      - 80:80
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - frontend
+      - product
+      - cart
+      - order
+    networks:
+      - e-commerce_network
+
+networks:
+  e-commerce_network:
+    driver: bridge
